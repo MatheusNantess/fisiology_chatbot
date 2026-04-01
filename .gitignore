@@ -1,0 +1,31 @@
+# === SEGREDOS E AMBIENTE ===
+.env
+.env.local
+.env.*
+
+# === PYTHON ===
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# === NODE / NEXT.JS ===
+node_modules/
+.next/
+dist/
+build/
+
+# === DADOS E MODELOS GRANDES ===
+data/
+*.pdf
+*.db
+*.sqlite
+
+# === LANGGRAPH ===
+.langgraph_api/
+
+# === MISC ===
+.DS_Store
+Thumbs.db

@@ -1,0 +1,7 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "fisiologia_agent": "./app/agent.py:app_graph"
+  },
+  "env": ".env"
+}
