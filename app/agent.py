@@ -6,28 +6,18 @@ from langgraph.graph.message import add_messages
 from langchain_google_genai import ChatGoogleGenerativeAI
 from app.vectorstore import create_or_load_vectorstore, buscar_com_rerank
 
-# ================= ESTADO DO GRAFO ===================
+
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     context: str
-    intent: str  # "chitchat" ou "academic"
+    intent: str  # "chitchat" | "academic"
 
-# ================= LLM ===================
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    temperature=0.1
-)
 
-# LLM mais "criativo" para respostas amigáveis
-llm_friendly = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    temperature=0.8
-)
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.1)
+llm_friendly = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.8)
 
-# Inicializa o Vectorstore globalmente
 vectorstore = create_or_load_vectorstore()
 
-# ================= NÓS DO GRAFO ===================
 
 def classify_node(state: AgentState):
     """Classifica a intenção da mensagem: chitchat ou academic."""
@@ -52,7 +42,6 @@ Responda apenas: chitchat ou academic"""
     resposta = llm.invoke([HumanMessage(content=prompt_classificador)])
     intent = resposta.content.strip().lower()
 
-    # Garante que só retorna valores válidos
     if "academic" in intent:
         return {"intent": "academic"}
     return {"intent": "chitchat"}
@@ -127,18 +116,14 @@ REGRAS:
     return {"messages": [resposta_direta]}
 
 
-# ================= ORQUESTRADOR ===================
 workflow = StateGraph(AgentState)
 
-# Adiciona todos os nós
 workflow.add_node("classify", classify_node)
 workflow.add_node("friendly", friendly_node)
 workflow.add_node("retrieve", retrieve_node)
 workflow.add_node("generate", generate_node)
 
-# Fluxo: START → classify → (condicional) → friendly ou retrieve → generate → END
 workflow.add_edge(START, "classify")
-
 workflow.add_conditional_edges(
     "classify",
     route_by_intent,
@@ -147,10 +132,9 @@ workflow.add_conditional_edges(
         "retrieve": "retrieve",
     }
 )
-
 workflow.add_edge("retrieve", "generate")
 workflow.add_edge("friendly", END)
 workflow.add_edge("generate", END)
 
-# Compila o grafo base (sem checkpointer — o checkpointer é adicionado na API)
+# Grafo base sem checkpointer — o checkpointer é injetado na API
 app_graph = workflow.compile()
