@@ -97,6 +97,77 @@ Resposta gerada com citação de fonte:
 
 ---
 
+## 📄 Ingestão e Chunking Contextual
+
+Antes de qualquer busca, o livro-texto em PDF passa por um pipeline de processamento em três etapas — implementado em `app/rag.py` e executado uma única vez via `scripts/ingest_pdf.py`.
+
+### Etapa 1 — Extração e limpeza por página
+
+Cada página é extraída com `pypdf` e passa por uma limpeza de ruído tipográfico:
+
+- Remoção de caracteres nulos (`\x00`) gerados pela extração de PDF
+- Colapso de múltiplas quebras de linha em no máximo duas (`\n\n`)
+- Colapso de espaços e tabs consecutivos em um único espaço
+
+### Etapa 2 — Detecção hierárquica de contexto (Parte → Capítulo)
+
+A cada página, o código detecta se ela marca o início de uma nova **Parte** ou de um novo **Capítulo** do livro usando expressões regulares nas primeiras 10 linhas:
+
+```python
+PART_PATTERN    = re.compile(r"^Parte\s+\d+", re.IGNORECASE)   # ex: "Parte 2"
+ONLY_NUMBER_PATTERN = re.compile(r"^\d+\s*$")                  # ex: "12" → próxima linha é o título
+```
+
+O estado hierárquico é mantido entre páginas com `current_part` e `current_chapter`. Se a página não marca nova seção, ela herda o contexto da página anterior. Isso garante que mesmo páginas intermediárias de um capítulo saibam a que seção pertencem.
+
+O resultado é um `Document` por página com metadados estruturados:
+
+```python
+metadata = {
+    "source": "livro.pdf",
+    "page": 143,
+    "part_title": "Parte 2 Fisiologia Especial",
+    "chapter_title": "Transporte pelos Tecidos Corporais"
+}
+```
+
+### Etapa 3 — Chunking com overlap + injeção de cabeçalho
+
+As páginas são fatiadas com `RecursiveCharacterTextSplitter` em chunks de **1000 caracteres com 200 de overlap**:
+
+- **1000 caracteres** ≈ 700–800 palavras — suficiente para cobrir um conceito completo sem sobrecarregar o contexto do LLM
+- **200 caracteres de overlap** — garante que frases que caem na borda entre dois chunks não percam o fio semântico
+
+Após o split, **cada chunk recebe um cabeçalho de contexto** injetado diretamente no início do `page_content`:
+
+```
+[Parte: Parte 2 Fisiologia Especial | Capítulo: Transporte pelos Tecidos Corporais]
+
+...texto do chunk...
+```
+
+Esse prefixo viaja junto com o chunk para o ChromaDB. Quando o chunk é recuperado e injetado no prompt, o LLM sabe automaticamente de qual parte do livro aquele trecho veio — sem depender de metadados separados que podem se perder entre etapas.
+
+### Resumo do pipeline de ingestão
+
+```
+PDF (848 páginas)
+      ↓
+Extração por página (pypdf) + limpeza de ruído
+      ↓
+Detecção de Parte/Capítulo por regex (estado propagado entre páginas)
+      ↓
+Document por página com metadata hierárquica
+      ↓
+RecursiveCharacterTextSplitter (chunk_size=1000, overlap=200)
+      ↓
+Injeção de cabeçalho [Parte | Capítulo] no page_content de cada chunk
+      ↓
+Embeddings (intfloat/multilingual-e5-small) → ChromaDB persistido em disco
+```
+
+---
+
 ## 🧠 Memória Persistente (PostgresSaver)
 
 A memória **não é implementada via SQL Tool** — usa o sistema nativo de `Checkpointer` do LangGraph.
