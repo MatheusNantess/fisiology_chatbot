@@ -1,4 +1,4 @@
-# 🧠 ProfeBot — Agente RAG de Fisiologia com Memória Persistente
+# 🧠 FisiologyBot — Agente RAG de Fisiologia com Memória Persistente
 
 > Sistema de IA conversacional full-stack que combina **Retrieval-Augmented Generation (RAG)**, **roteamento condicional de intenção** e **memória persistente por usuário** — construído sobre LangGraph, Google Gemini, ChromaDB e Supabase.
 
@@ -12,7 +12,7 @@
 
 ## 📌 Visão Geral
 
-O **ProfeBot** é um chatbot educacional inteligente voltado para estudantes de Fisiologia. Ele é capaz de:
+O **FisiologyBott** é um chatbot educacional inteligente voltado para estudantes de Fisiologia. Ele é capaz de:
 
 - 📖 **Responder perguntas acadêmicas** com base em um livro-texto em PDF indexado via Embeddings + ChromaDB
 - 💬 **Conversar humanamente** com o aluno em interações casuais (saudações, dúvidas, elogios)
